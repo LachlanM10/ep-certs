@@ -1,5 +1,7 @@
 /* EP Certs — PDF renderer.
- * renderCert(jsPDF, template, data, settings) -> jsPDF document (A4, mm).
+ * renderCert(jsPDF, template, data, settings, attachments) -> jsPDF document (A4, mm).
+ * attachments: [{ t: template, data }] printed after the main certificate in the same PDF
+ * (e.g. a test sheet), each starting on a new page with its own header and footer.
  * Draws any template from forms.js, so new templates print with no changes here.
  */
 (function (root) {
@@ -21,12 +23,12 @@
     return Array.isArray(v) ? v.includes(f.showIf.v) : v === f.showIf.v;
   }
 
-  function renderCert(jsPDF, t, data, settings) {
+  function renderCert(jsPDF, t0, data0, settings, attachments) {
     const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
     const co = (settings && settings.company) || {};
-    const ref = data._ref || "";
-    let y = 0;
-    FOOT = (t.footer || []).length > 1 ? 18 : 12;
+    let t = t0, data = data0, ref = "", y = 0;
+    const footFor = (tt) => ((tt.footer || []).length > 1 ? 18 : 12);
+    const pageInfo = [];
 
     const col = (c, kind = "text") => kind === "fill" ? doc.setFillColor(...c) : kind === "draw" ? doc.setDrawColor(...c) : doc.setTextColor(...c);
     const font = (style = "normal", size = 9, face = "helvetica") => { doc.setFont(face, style); doc.setFontSize(size); };
@@ -94,6 +96,7 @@
           return labelH(f, w) + optionLayout(opts, w).rows * 5.2;
         }
         case "tests": return labelH(f, w) + f.rows.length * 5.8 + 0.5;
+        case "grid": return labelH(f, w) + 7 + gridRows(f).length * 5.5;
         case "sig": return labelH(f, w) + 14.5;
       }
       return 0;
@@ -107,6 +110,47 @@
       if (ow > w * 0.5 || !f.label) return null;
       font("bold", 7); const ll = lines(f.label, w - ow - 4);
       return ll.length <= 2 ? { ll, ow, L } : null;
+    }
+
+    function gridRows(f) {
+      const filled = (data[f.id] || []).filter((r) => r && Object.values(r).some((v) => String(v || "").trim()));
+      while (filled.length < (f.minRows || 0)) filled.push({});
+      return filled;
+    }
+
+    // Circuit-style table that runs across pages, repeating its header row.
+    function drawGrid(f) {
+      const lh = drawLabel(f, M, CW); y += lh;
+      const tw = f.cols.reduce((a, c) => a + (c.w || 1), 0);
+      const ws = f.cols.map((c) => ((c.w || 1) / tw) * CW);
+      const head = () => {
+        col(C.ink, "fill"); doc.rect(M, y, CW, 7, "F");
+        let x = M;
+        f.cols.forEach((c, i) => {
+          font("bold", 6.3); col(C.white); doc.text(clean(c.label), x + 1.2, y + 2.9, { maxWidth: ws[i] - 2 });
+          if (c.unit) { font("bold", 6); col(C.gold); doc.text(clean(c.unit), x + 1.2, y + 5.8); }
+          x += ws[i];
+        });
+        y += 7;
+      };
+      head();
+      gridRows(f).forEach((r, ri) => {
+        if (y + 5.5 > bottom()) { newPage(); head(); }
+        if (ri % 2 === 1) { col(C.fill, "fill"); doc.rect(M, y, CW, 5.5, "F"); }
+        let x = M;
+        f.cols.forEach((c, i) => {
+          const v = clean(r[c.id] || "");
+          if (v) {
+            if (c.text) { font("normal", 7.5); col(C.ink); doc.text(doc.splitTextToSize(v, ws[i] - 2)[0], x + 1.2, y + 3.8); }
+            else { font("bold", 8, "courier"); col(C.ink); doc.text(doc.splitTextToSize(v, ws[i] - 2)[0], x + 1.2, y + 3.8); }
+          }
+          if (i) { col(C.line, "draw"); doc.setLineWidth(0.15); doc.line(x, y, x, y + 5.5); }
+          x += ws[i];
+        });
+        col(C.line, "draw"); doc.setLineWidth(0.2); doc.line(M, y + 5.5, M + CW, y + 5.5);
+        y += 5.5;
+      });
+      y += 2.4;
     }
 
     function inlineText(f) {
@@ -224,6 +268,10 @@
     }
 
     // ---- page flow -------------------------------------------------------
+    function part(pt, pd, first) {
+    t = pt; data = pd; ref = pd._ref || ""; FOOT = footFor(pt);
+    if (!first) doc.addPage();
+    const startPage = doc.getNumberOfPages();
     header(true);
     for (const s of t.sections) {
       const fields = s.fields.filter((f) => isShown(f, data));
@@ -242,6 +290,10 @@
       if (sized.length && y + 7.5 + Math.min(sized[0].h, 40) > bottom()) newPage();
       sectionTitle(s.title);
       for (const row of sized) {
+        if (row.r.length === 1 && row.r[0].type === "grid") {
+          if (bottom() - y < 30) newPage();
+          drawGrid(row.r[0]); continue;
+        }
         const tooTall = row.h > bottom() - y;
         if (tooTall && row.r.length === 1 && row.r[0].type === "textarea") {
           if (bottom() - y < 25) newPage();
@@ -254,11 +306,17 @@
       }
       y += 1;
     }
+    for (let p = startPage; p <= doc.getNumberOfPages(); p++) pageInfo[p - 1] = { t, ref };
+    }
+
+    part(t0, data0, true);
+    for (const a of attachments || []) part(a.t, a.data, false);
 
     // ---- footer on every page --------------------------------------------
     const n = doc.getNumberOfPages();
     for (let p = 1; p <= n; p++) {
       doc.setPage(p);
+      ({ t, ref } = pageInfo[p - 1]); FOOT = footFor(t);
       const fy = PH - FOOT + 2;
       col(C.gold, "draw"); doc.setLineWidth(0.4); doc.line(M, fy, PW - M, fy);
       let ly = fy + 4;
@@ -270,7 +328,7 @@
       doc.text(`Page ${p} of ${n}`, PW - M, PH - 4, { align: "right" });
       doc.text(clean(ref), M, PH - 4);
     }
-    doc.setProperties({ title: clean(`${t.title} ${ref}`), author: clean(co.name || "Electrical Potential Ltd"), creator: "EP Certs" });
+    doc.setProperties({ title: clean(`${t0.title} ${data0._ref || ""}`), author: clean(co.name || "Electrical Potential Ltd"), creator: "EP Certs" });
     return doc;
   }
 

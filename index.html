@@ -124,6 +124,20 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .btn.gold { background: var(--gold); color: #111110; border-color: var(--gold); }
 .btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
 .btn[disabled] { opacity: .45; }
+.grid-rows { display: grid; gap: 10px; }
+.grow-card { border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); padding: 8px 10px 10px; }
+.grow-head { display: flex; align-items: center; justify-content: space-between; min-height: 32px; margin-bottom: 6px; }
+.grow-head b { font: 700 15px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+.grow-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.gcell { display: grid; gap: 4px; min-width: 0; }
+.gcell.wide { grid-column: 1 / -1; }
+.gcell span { font-size: 12px; font-weight: 600; color: var(--muted); }
+.gcell span i { font-style: normal; color: var(--gold-ink); }
+.gcell .input { min-height: 44px; padding: 8px 10px; background: var(--surface); }
+.btn.ghost { border-color: transparent; color: var(--danger); background: none; }
+.attached { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.attached .ref { font: 600 13px/1 var(--f-mono); }
+.attached .meta { flex-basis: 100%; font-size: 13px; color: var(--muted); }
 .jobrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .jobrow .field { flex: 1 1 140px; }
 .jobrow .btn { flex: 0 0 auto; min-height: 48px; }
@@ -279,7 +293,7 @@ function itemHtml(c) {
   const when = new Date(c.updated).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
   return `<div class="item">
     <button class="main" data-open="${c.id}">
-      <span class="row1"><span class="tag">${t ? t.code : "?"}</span><span class="ref">${esc(c.ref)}</span><span class="pill ${c.status}">${c.status === "issued" ? "Issued" : "Draft"}</span></span>
+      <span class="row1"><span class="tag">${t ? t.code : "?"}</span><span class="ref">${esc(c.ref)}</span><span class="pill ${c.status}">${c.status === "issued" ? "Issued" : "Draft"}</span>${c.data._tests && byId(c.data._tests) ? '<span class="pill draft">+ tests</span>' : ""}</span>
       <span class="loc">${esc(loc)}</span>
       <span class="meta">${esc((c.data.contact || "").split("\n")[0])}${c.data.contact ? " · " : ""}${when}</span>
     </button>
@@ -287,7 +301,7 @@ function itemHtml(c) {
   </div>`;
 }
 
-function newCert(tplId, seed = {}) {
+function newCert(tplId, seed = {}, opts = {}) {
   const t = T.byId(tplId);
   const data = { ...seed };
   for (const s of t.sections) for (const f of s.fields) {
@@ -297,7 +311,8 @@ function newCert(tplId, seed = {}) {
     if (f.type === "inline") f.parts.forEach((p) => { if (typeof p !== "string" && !data[p.id]) data[p.id] = p.options[0]; });
   }
   const c = { id: uid(), tpl: tplId, ref: nextRef(t.code), status: "draft", created: Date.now(), updated: Date.now(), data };
-  certs.push(c); saveCerts(); go("form", { cert: c });
+  certs.push(c); saveCerts(); if (opts.open !== false) go("form", { cert: c });
+  return c;
 }
 
 function certMenu(c) {
@@ -317,7 +332,7 @@ function certMenu(c) {
     el.querySelector('[data-a="del"]').onclick = () => {
       el.querySelector(".stack").innerHTML = `<p>Delete ${esc(c.ref)} from this phone? Copies you have already emailed are not affected.</p>
         <button class="btn danger" data-a="yes">Delete</button><button class="btn" data-a="no">Keep it</button>`;
-      el.querySelector('[data-a="yes"]').onclick = () => { certs = certs.filter((x) => x.id !== c.id); saveCerts(); close(); renderHome(); toast("Deleted"); };
+      el.querySelector('[data-a="yes"]').onclick = () => { certs = certs.filter((x) => x.id !== c.id); for (const x of certs) if (x.data._tests === c.id) delete x.data._tests; saveCerts(); close(); renderHome(); toast("Deleted"); };
       el.querySelector('[data-a="no"]').onclick = close;
     };
   });
@@ -356,7 +371,9 @@ function renderForm() {
   <main class="wrap" id="form">
     ${c.status === "issued" ? `<div class="banner">Issued ${new Date(c.issuedAt).toLocaleDateString("en-NZ")}. Changes here update this copy only, so re-share the PDF if you correct anything.</div>` : ""}
     ${jobCardHtml(c, t)}
+    ${t.attachment ? parentCardHtml(c) : ""}
     ${t.sections.map((s) => `<section class="card"><h3>${esc(s.title)}</h3><div class="fields">${s.fields.map((f) => fieldHtml(f, d, groupsSeen)).join("")}</div></section>`).join("")}
+    ${t.attachment ? "" : testsCardHtml(c, t)}
   </main>
   <div class="bar"><div class="wrap">
     <div class="status" id="status">Saved on this phone</div>
@@ -368,6 +385,83 @@ function renderForm() {
   $("#issue").onclick = () => { flush(); finish(c); };
   bindForm(c, t);
   bindJobCard(c, t);
+  bindAttachCards(c, t);
+}
+function rerenderKeepScroll() { const yy = window.scrollY; renderForm(); window.scrollTo(0, yy); }
+
+// ---------- test sheets attached to certificates ----------
+const TEST_TPL = T.TEMPLATES.find((x) => x.attachment);
+const byId = (id) => certs.find((x) => x.id === id);
+function circuitCount(tc) { return (tc.data.circuits || []).filter((r) => r && Object.values(r).some((v) => String(v || "").trim())).length; }
+function testsCardHtml(c, t) {
+  if (!TEST_TPL) return "";
+  const tc = byId(c.data._tests);
+  return `<section class="card attach-card"><h3>Test sheet</h3>
+    ${tc ? `<div class="attached"><span class="tag">${TEST_TPL.code}</span><span class="ref">${esc(tc.ref)}</span>
+        <span class="meta">${circuitCount(tc)} circuit${circuitCount(tc) === 1 ? "" : "s"} recorded · prints after this certificate</span></div>
+      <div class="sig-tools"><button type="button" class="btn sm gold" data-at="open">Open test sheet</button>
+        ${findField(t, "tests") ? '<button type="button" class="btn sm" data-at="copy">Copy results into this certificate</button>' : ""}
+        <button type="button" class="btn sm" data-at="detach">Detach</button></div>` :
+      `<p class="hint" style="margin:0 0 10px">Attach a circuit-by-circuit test sheet. It goes out in the same PDF, after this certificate.</p>
+      <div class="sig-tools"><button type="button" class="btn sm gold" data-at="new">Start test sheet for this job</button>
+        ${certs.some((x) => x.tpl === TEST_TPL.id) ? '<button type="button" class="btn sm" data-at="pick">Attach one already done</button>' : ""}</div>`}
+  </section>`;
+}
+function parentCardHtml(c) {
+  const parent = certs.find((x) => x.data._tests === c.id);
+  if (!parent) return "";
+  return `<div class="banner">Attached to ${esc(parent.ref)}. It prints after that certificate when you share it.
+    <button type="button" class="btn sm" data-at="parent" style="margin-left:auto;flex:none">Back to certificate</button></div>`;
+}
+function linkTests(c, tc) {
+  for (const x of certs) if (x.data._tests === tc.id && x.id !== c.id) delete x.data._tests; // one certificate per sheet
+  c.data._tests = tc.id; tc.data.forCert = c.ref; tc.updated = Date.now(); c.updated = Date.now(); saveCerts();
+}
+function bindAttachCards(c, t) {
+  const on = (a, fn) => { const b = document.querySelector(`[data-at="${a}"]`); if (b) b.onclick = fn; };
+  on("open", () => { flush(); go("form", { cert: byId(c.data._tests) }); });
+  on("detach", () => { const tc = byId(c.data._tests); if (tc && tc.data.forCert === c.ref) tc.data.forCert = ""; delete c.data._tests; saveCerts(); rerenderKeepScroll(); toast("Test sheet detached. It's still saved on this phone."); });
+  on("new", () => {
+    flush();
+    const seed = { location: (c.data.location || "").replace(/\n+/g, ", "), jobNo: c.data.jobNo || "" };
+    if (/three/i.test(c.data.supply || "")) seed.phases = "Three phase"; else if (c.data.supply) seed.phases = "Single phase";
+    if (t.isSolar && t.isSolar(c.data)) seed.pv = "Yes";
+    const tc = newCert(TEST_TPL.id, seed, { open: false });
+    linkTests(c, tc); go("form", { cert: tc });
+  });
+  on("pick", () => {
+    const loc = (c.data.location || "").split(/[\n,]/)[0].trim().toLowerCase();
+    const list = certs.filter((x) => x.tpl === TEST_TPL.id).sort((a, b) =>
+      ((b.data.jobNo && b.data.jobNo === c.data.jobNo) || (loc && (b.data.location || "").toLowerCase().includes(loc))) -
+      ((a.data.jobNo && a.data.jobNo === c.data.jobNo) || (loc && (a.data.location || "").toLowerCase().includes(loc))) || b.updated - a.updated);
+    sheet(`<h4>Attach a test sheet</h4><p>Ones for this job or address are listed first.</p><div class="stack">${list.map((x) =>
+      `<button class="btn" data-pick="${x.id}" style="justify-content:flex-start;text-align:left"><span class="ref" style="font:600 12px var(--f-mono)">${esc(x.ref)}</span>&nbsp; ${esc((x.data.location || "No address").split(",")[0])}</button>`).join("")}</div>`, (el, close) => {
+      el.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => { linkTests(c, byId(b.dataset.pick)); close(); rerenderKeepScroll(); toast("Test sheet attached"); }));
+    });
+  });
+  on("copy", () => {
+    const tc = byId(c.data._tests); const r = summariseTests(tc);
+    const f = findField(t, "tests"); c.data[f.id] = { ...(c.data[f.id] || {}), ...r }; c.updated = Date.now(); saveCerts(); rerenderKeepScroll();
+    toast("Worst-case results copied from the test sheet");
+  });
+  on("parent", () => { flush(); go("form", { cert: certs.find((x) => x.data._tests === c.id) }); });
+}
+// Worst-case figures for the CoC's test results box: lowest insulation, highest continuity and fault loop.
+function summariseTests(tc) {
+  const rows = (tc.data.circuits || []).filter((r) => r && Object.values(r).some((v) => String(v || "").trim()));
+  const num = (v) => { const m = String(v || "").match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
+  const pick = (k, worst) => { let best = null; for (const r of rows) { const n = num(r[k]); if (n == null) continue; if (!best || (worst === "min" ? n < best.n : n > best.n)) best = { n, v: r[k] }; } return best ? String(best.v).trim() : ""; };
+  const pols = rows.map((r) => String(r.pol || "").trim()).filter(Boolean);
+  const bad = pols.some((p) => !/^(ok|correct|yes|✓|y|pass)$/i.test(p));
+  const trip = pick("trip", "max");
+  const out = {
+    ir: pick("ir", "min"),
+    ec: pick("r1r2", "max"), efli: pick("efli", "max") || (tc.data.zeMsb || ""),
+    other: [trip && `RCD max ${trip} ms`, `see test sheet ${tc.ref}`].filter(Boolean).join(", "),
+  };
+  if (pols.length) out.polarity = bad ? "See test sheet" : "Correct";
+    for (const k of Object.keys(out)) if (!out[k]) delete out[k];
+  return out;
 }
 
 // ---------- Fergus job lookup ----------
@@ -449,12 +543,23 @@ function fieldHtml(f, d, groupsSeen) {
   const wrap = (inner, lbl = true) => `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}>${chips}${lbl && f.label ? `<label for="${id}">${esc(f.label)}${req}</label>` : ""}${inner}</div>`;
   const v = d[f.id];
   switch (f.type) {
-    case "text": return wrap(`${licenceChips(f) ? "" : ""}<input class="input" id="${id}" value="${esc(v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""} ${f.list ? `list="${id}-l"` : ""} autocomplete="off">${licenceChips(f)}${f.list ? `<datalist id="${id}-l">${f.list.map((o) => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`);
+    case "text": return wrap(`<input class="input" id="${id}" value="${esc(v)}" ${f.im ? `inputmode="${f.im}"` : ""} ${f.ph ? `placeholder="${esc(f.ph)}"` : ""} ${f.list ? `list="${id}-l"` : ""} autocomplete="off">${licenceChips(f)}${f.list ? `<datalist id="${id}-l">${f.list.map((o) => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`);
     case "date": return wrap(`<input class="input" type="date" id="${id}" value="${esc(v)}">`);
     case "textarea": return wrap(`<textarea class="input" id="${id}" rows="${Math.max(2, f.rows || 2)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""}>${esc(v)}</textarea>`);
     case "choice": case "yesno": case "multi": {
       const opts = f.type === "yesno" ? ["Yes", "No"] : f.options; const sel = Array.isArray(v) ? v : v ? [v] : [];
       return `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}>${f.label ? `<div class="lbl" id="${id}-l">${esc(f.label)}${req}</div>` : ""}<div class="opts" role="group" aria-labelledby="${id}-l">${opts.map((o) => `<button type="button" class="opt${f.type === "multi" ? " multi" : ""}" data-opt="${f.id}" data-val="${esc(o)}" aria-pressed="${sel.includes(o)}">${esc(o)}</button>`).join("")}</div></div>`;
+    }
+    case "grid": {
+      const rows = Array.isArray(v) && v.length ? v : [{}];
+      return `<div class="field" data-f="${f.id}"${hide}>${f.label ? `<div class="lbl">${esc(f.label)}</div>` : ""}
+        <div class="grid-rows">${rows.map((r, ri) => `<div class="grow-card">
+          <div class="grow-head"><b>${esc(f.rowName || "Row")} ${esc(r[f.counter] || ri + 1)}</b>
+            ${rows.length > 1 ? `<button type="button" class="btn sm ghost" data-growdel="${f.id}" data-r="${ri}" aria-label="Remove ${esc(f.rowName || "row")} ${ri + 1}">Remove</button>` : ""}</div>
+          <div class="grow-fields">${f.cols.map((col) => `<label class="gcell${col.wide ? " wide" : ""}"><span>${esc(col.label)}${col.unit ? ` <i>${esc(col.unit)}</i>` : ""}</span>
+            <input class="input${col.text ? "" : " mono"}" data-grid="${f.id}" data-r="${ri}" data-k="${col.id}" value="${esc(r[col.id])}" ${col.ph ? `placeholder="${esc(col.ph)}"` : ""} inputmode="${col.im || "text"}" autocomplete="off"></label>`).join("")}</div>
+        </div>`).join("")}</div>
+        <button type="button" class="btn" data-growadd="${f.id}">+ ${esc(f.addLabel || "Add row")}</button></div>`;
     }
     case "note": return `<div class="field" data-f="${f.id}"${hide}><p class="note${f.small ? " small" : ""}">${esc(f.text)}</p></div>`;
     case "inline": return `<div class="field" data-f="${f.id}"><p class="inline-decl">${f.parts.map((p) => typeof p === "string" ? esc(p) :
@@ -488,6 +593,19 @@ function bindForm(c, t) {
     if (f.type === "tests") form.querySelectorAll(`[data-f="${f.id}"] [data-test]`).forEach((el) => (el.oninput = () => { d[f.id] = { ...(d[f.id] || {}), [el.dataset.test]: el.value }; changed(); }));
     if (f.type === "inline") f.parts.forEach((p) => { if (typeof p !== "string") { const el = $("#f-" + p.id); el.onchange = () => { d[p.id] = el.value; changed(); }; } });
     if (f.type === "sig") sigPad(f, c, changed);
+    if (f.type === "grid") {
+      if (!Array.isArray(d[f.id]) || !d[f.id].length) d[f.id] = [{ ...(f.counter ? { [f.counter]: "1" } : {}) }];
+      form.querySelectorAll(`[data-grid="${f.id}"]`).forEach((el) => (el.oninput = () => { d[f.id][+el.dataset.r][el.dataset.k] = el.value; changed(); }));
+      const add = form.querySelector(`[data-growadd="${f.id}"]`);
+      add.onclick = () => {
+        const rows = d[f.id], prev = rows[rows.length - 1] || {}, nr = {};
+        for (const k of f.carry || []) if (prev[k]) nr[k] = prev[k];
+        if (f.counter) { const n = parseInt(prev[f.counter], 10); nr[f.counter] = String(isNaN(n) ? rows.length + 1 : n + 1); }
+        rows.push(nr); changed(); flush(); rerenderKeepScroll();
+        const last = document.querySelectorAll(`[data-grid="${f.id}"][data-k="${f.cols[1].id}"]`); last[last.length - 1]?.focus({ preventScroll: false });
+      };
+      form.querySelectorAll(`[data-growdel="${f.id}"]`).forEach((b) => (b.onclick = () => { d[f.id].splice(+b.dataset.r, 1); changed(); flush(); rerenderKeepScroll(); }));
+    }
   }
   form.querySelectorAll("[data-opt]").forEach((b) => (b.onclick = () => {
     const f = findField(t, b.dataset.opt), val = b.dataset.val;
@@ -584,7 +702,9 @@ function fileName(c) {
   return `${c.ref}${c.data.jobNo ? " " + c.data.jobNo.replace(/[^\w-]/g, "") : ""}${loc ? " " + loc : ""}.pdf`;
 }
 function buildPdf(c) {
-  const doc = PDF.renderCert(window.jspdf.jsPDF, T.byId(c.tpl), { ...c.data, _ref: c.ref }, S);
+  const tc = byId(c.data._tests);
+  const att = tc ? [{ t: T.byId(tc.tpl), data: { ...tc.data, forCert: tc.data.forCert || c.ref, _ref: tc.ref } }] : [];
+  const doc = PDF.renderCert(window.jspdf.jsPDF, T.byId(c.tpl), { ...c.data, _ref: c.ref }, S, att);
   return new File([doc.output("blob")], fileName(c), { type: "application/pdf" });
 }
 function previewPdf(c) {

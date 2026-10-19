@@ -9,6 +9,9 @@
  *   multi                     pick any of options
  *   yesno                     choice with ["Yes","No"]
  *   tests                     test-result grid (rows: [{id,label,unit,ph}])
+ *   grid                      table with rows added on the phone (cols: [{id,label,unit,w,text,wide,im,ph}],
+ *                             minRows printed even when empty, carry: columns copied into a new row,
+ *                             counter: column that counts up for each new row)
  *   sig                       finger signature (copyFrom: another sig field)
  *   note                      fixed wording printed on the certificate
  *   inline                    sentence with dropdown words (parts: strings and {id,options})
@@ -20,6 +23,7 @@
  *   auto     "today" — filled with today's date on a new certificate
  *   list     suggestions for a text field
  * Template keys:
+ *   attachment  true for sheets that can be attached to another certificate (printed after it)
  *   isSolar  (data) => true when this is solar work, so licence fields use the solar (PV) licence
  *   fergus   {fieldId: "site"|"contact"|"description"|"customer"} — filled from a Fergus job number
  */
@@ -199,6 +203,80 @@
           ]},
           { id: "sig", type: "sig", label: "Signature", w: 0.66, req: true, person: { g: "me", p: "sig" } },
           { id: "date", type: "date", label: "Date", w: 0.34, req: true, auto: "today" },
+        ]},
+      ],
+    },
+    {
+      id: "tests",
+      code: "TST",
+      name: "Test sheet",
+      title: "Electrical Test Results Schedule",
+      subtitle: "Verification tests to AS/NZS 3000 and AS/NZS 3017",
+      blurb: "Circuit-by-circuit test results. Use on its own, or attach it to a CoC, ESC or RoI.",
+      attachment: true,
+      fergus: { location: "site" },
+      isSolar: (d) => d.pv === "Yes",
+      footer: ["TEST RESULTS SCHEDULE - READ TOGETHER WITH THE CERTIFICATE REFERENCED ON THIS SHEET"],
+      sections: [
+        { title: "Installation", fields: [
+          { id: "location", type: "text", label: "Location details", req: true, w: 0.66 },
+          { id: "forCert", type: "text", label: "Certificate this sheet belongs to", w: 0.34, ph: "Filled in when attached" },
+          { id: "instrument", type: "text", label: "Test instrument (make and model)", w: 0.5, ph: "e.g. Fluke 1664 FC" },
+          { id: "serial", type: "text", label: "Serial no.", w: 0.25 },
+          { id: "calDue", type: "date", label: "Calibration due", w: 0.25 },
+        ]},
+        { title: "Supply and main earthing", fields: [
+          { id: "phases", type: "choice", label: "Supply", options: ["Single phase", "Three phase"], req: true },
+          { id: "voltage", type: "text", label: "Voltage at MSB (V)", w: 0.25, im: "decimal", ph: "236" },
+          { id: "zeMsb", type: "text", label: "Fault loop impedance at MSB (Ω)", w: 0.25, im: "decimal", ph: "0.32" },
+          { id: "pscc", type: "text", label: "Prospective fault current (kA)", w: 0.25, im: "decimal", ph: "0.72" },
+          { id: "polMsb", type: "choice", label: "Polarity at MSB", options: ["Correct", "Incorrect"], w: 0.25 },
+          { id: "meSize", type: "text", label: "Main earth conductor (mm²)", w: 0.25, im: "decimal", ph: "16" },
+          { id: "electrode", type: "text", label: "Earth electrode (Ω)", w: 0.25, im: "decimal" },
+          { id: "meContinuity", type: "text", label: "Main earth continuity (Ω)", w: 0.25, im: "decimal" },
+          { id: "bonding", type: "choice", label: "Equipotential bonding", options: ["Done", "N/A"], w: 0.25 },
+        ]},
+        { title: "Circuit tests", fields: [
+          { id: "circuits", type: "grid", label: "", minRows: 6, addLabel: "Add circuit", rowName: "Circuit",
+            carry: ["device", "rcd", "cable"], counter: "cct",
+            cols: [
+              { id: "cct", label: "Cct", w: 0.55, im: "numeric" },
+              { id: "desc", label: "Description", w: 2.2, text: true, wide: true, ph: "Lights kitchen" },
+              { id: "device", label: "Device", w: 0.8, text: true, ph: "C16" },
+              { id: "rcd", label: "RCD", unit: "mA", w: 0.6, ph: "30" , im: "numeric" },
+              { id: "cable", label: "Cable", unit: "mm²", w: 0.75, ph: "2.5/1.5" },
+              { id: "ir", label: "Insulation", unit: "MΩ", w: 0.85, ph: ">200" },
+              { id: "r1r2", label: "Earth cont.", unit: "Ω", w: 0.85, ph: "0.42", im: "decimal" },
+              { id: "efli", label: "Fault loop", unit: "Ω", w: 0.85, ph: "0.86", im: "decimal" },
+              { id: "pol", label: "Polarity", w: 0.75, ph: "OK", text: true },
+              { id: "trip", label: "RCD trip", unit: "ms", w: 0.75, ph: "22", im: "decimal" },
+            ]},
+        ]},
+        { title: "Solar PV", fields: [
+          { id: "pv", type: "choice", label: "Includes a PV array or inverter", options: ["No", "Yes"] },
+          { id: "strings", type: "grid", label: "PV string tests", minRows: 2, addLabel: "Add string", rowName: "String", counter: "str",
+            showIf: { f: "pv", v: "Yes" }, carry: ["mods"],
+            cols: [
+              { id: "str", label: "String", w: 0.7, im: "numeric" },
+              { id: "mods", label: "Modules", w: 0.8, im: "numeric", ph: "10" },
+              { id: "voc", label: "Voc", unit: "V", w: 0.9, im: "decimal", ph: "412" },
+              { id: "isc", label: "Isc", unit: "A", w: 0.9, im: "decimal", ph: "10.8" },
+              { id: "pol", label: "Polarity", w: 0.9, text: true, ph: "OK" },
+              { id: "irPos", label: "IR + to E", unit: "MΩ", w: 1, ph: ">200" },
+              { id: "irNeg", label: "IR - to E", unit: "MΩ", w: 1, ph: ">200" },
+              { id: "notes", label: "Notes", w: 2, text: true, wide: true },
+            ]},
+          { id: "invSetting", type: "text", label: "Inverter grid settings / region (AS/NZS 4777.1)", w: 0.5, showIf: { f: "pv", v: "Yes" }, ph: "NZ, 230 V" },
+          { id: "antiIsland", type: "choice", label: "Anti-islanding / shutdown test", options: ["Pass", "Fail", "N/A"], w: 0.5, showIf: { f: "pv", v: "Yes" } },
+        ]},
+        { title: "Notes", fields: [
+          { id: "notes", type: "textarea", rows: 1, label: "Notes or limitations" },
+        ]},
+        { title: "Tested by", fields: [
+          { id: "testerName", type: "text", label: "Name", w: 0.34, req: true, person: { g: "me", p: "name" } },
+          { id: "testerReg", type: "text", label: "Registration / licence #", w: 0.33, req: true, person: { g: "me", p: "reg" } },
+          { id: "testDate", type: "date", label: "Date tested", w: 0.33, req: true, auto: "today" },
+          { id: "testerSig", type: "sig", label: "Signature", w: 0.66, person: { g: "me", p: "sig" } },
         ]},
       ],
     },
