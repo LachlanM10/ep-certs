@@ -11,9 +11,9 @@ window.EPConfig = {
     email: "lachlan@electricalpotential.co.nz",
     address: "16A Turnbull Crescent, Morrinsville 3300",
   },
-  records: "", // Gmail address finished certificates are sent to
+  records: "certs@electricalpotential.co.nz", // Gmail address finished certificates are sent to
   people: [
-    { id: "p-lachlan", name: "Lachlan Murdoch", reg: "", phone: "027 576 5422", email: "lachlan@electricalpotential.co.nz" },
-    { id: "p-kaycee", name: "Kaycee", reg: "", phone: "", email: "" },
+    { id: "p-lachlan", name: "Lachlan Murdoch", reg: "E279592", phone: "027 576 5422", email: "lachlan@electricalpotential.co.nz" },
+    { id: "p-kaycee", name: "Kaycee Grinter", reg: "E111650", phone: "027 284 6000", email: "kaycee@electricalpotential.co.nz" },
   ],
 };
