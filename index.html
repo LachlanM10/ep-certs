@@ -502,13 +502,32 @@ function bindJobCard(c, t) {
 async function fergusLookup(n) {
   const url = new URL(S.fergus.url); url.searchParams.set("job", n); url.searchParams.set("key", S.fergus.key);
   const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 15000);
-  let res;
-  try { res = await fetch(url, { signal: ctl.signal, redirect: "follow" }); }
-  catch (e) { throw new Error(e.name === "AbortError" ? "Fergus took too long to answer. Check your signal and try again." : "Couldn't reach the Fergus lookup. Check your signal, or the lookup address in Settings."); }
-  finally { clearTimeout(timer); }
-  let j; try { j = await res.json(); } catch { throw new Error("The Fergus lookup sent back something unexpected. Check the lookup address in Settings."); }
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec/.test(S.fergus.url)) { clearTimeout(timer); throw new Error("The lookup address should start with https://script.google.com/macros/s/ and end in /exec. Copy the Web app URL from Deploy → Manage deployments."); }
+  let j;
+  try {
+    const res = await fetch(url, { signal: ctl.signal, redirect: "follow" });
+    j = await res.json();
+  } catch (e) {
+    if (e.name === "AbortError") { clearTimeout(timer); throw new Error("Fergus took too long to answer. Check your signal and try again."); }
+    // Some phones block the direct request; try again by loading it as a script.
+    try { j = await jsonp(url); }
+    catch { clearTimeout(timer); throw new Error("Couldn't reach the Fergus lookup. Check the deployment is set to 'Who has access: Anyone', and that the lookup address ends in /exec."); }
+  }
+  clearTimeout(timer);
+  if (!j || typeof j !== "object") throw new Error("The Fergus lookup sent back something unexpected. Check the lookup address in Settings.");
   if (!j.ok) throw new Error(j.error || "Fergus lookup failed.");
   return j.job;
+}
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = "epFergus" + Date.now(), u = new URL(url); u.searchParams.set("callback", cb);
+    const el = document.createElement("script"); let done = false;
+    const end = () => { done = true; delete window[cb]; el.remove(); };
+    window[cb] = (data) => { end(); resolve(data); };
+    el.onerror = () => { if (!done) { end(); reject(new Error("load")); } };
+    setTimeout(() => { if (!done) { end(); reject(new Error("timeout")); } }, 15000);
+    el.src = u.toString(); document.head.appendChild(el);
+  });
 }
 // Turn the lookup's job into certificate fields. Only empty fields are filled.
 function jobFields(job) {

@@ -15,6 +15,7 @@ const FERGUS = "https://api.fergus.com";
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
+  CALLBACK = /^[A-Za-z_$][\w$]{0,40}$/.test(p.callback || "") ? p.callback : "";
   const props = PropertiesService.getScriptProperties();
   const appKey = props.getProperty("APP_KEY");
   const token = props.getProperty("FERGUS_TOKEN");
@@ -62,7 +63,9 @@ function slim(j) {
   };
 }
 
+let CALLBACK = "";
 function reply(obj) {
+  if (CALLBACK) return ContentService.createTextOutput(CALLBACK + "(" + JSON.stringify(obj) + ");").setMimeType(ContentService.MimeType.JAVASCRIPT);
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
