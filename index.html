@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EP Certs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#111110">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EP Certs">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: black-and-gold brand band on top, stacked form cards, a fixed action bar at the thumb. */
+:root {
+  --bg: #F2F1ED; --surface: #FFFFFF; --surface-2: #F7F6F2; --ink: #171715; --muted: #64625B; --line: #D9D7CF;
+  --gold: #C9A227; --gold-ink: #7A5F0A; --gold-soft: #F5ECCD; --band: #111110; --band-ink: #E8E5DA;
+  --sel-bg: #171715; --sel-ink: #E6C14C; --danger: #A52A21; --ok: #2D6A3A; --shadow: 0 1px 2px rgba(20,18,10,.06), 0 6px 18px rgba(20,18,10,.05);
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Public Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D0D0C; --surface: #181816; --surface-2: #1F1F1C; --ink: #EEECE5; --muted: #A4A197; --line: #33322D;
+  --gold: #D8B23E; --gold-ink: #E2C05C; --gold-soft: #2C2611; --band: #000000; --band-ink: #E8E5DA;
+  --sel-bg: #D8B23E; --sel-ink: #111110; --danger: #F07A70; --ok: #86C893; --shadow: none; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0D0D0C; --surface: #181816; --surface-2: #1F1F1C; --ink: #EEECE5; --muted: #A4A197; --line: #33322D;
+  --gold: #D8B23E; --gold-ink: #E2C05C; --gold-soft: #2C2611; --band: #000000; --band-ink: #E8E5DA;
+  --sel-bg: #D8B23E; --sel-ink: #111110; --danger: #F07A70; --ok: #86C893; --shadow: none; color-scheme: dark; }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f-body); -webkit-text-size-adjust: 100%; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--band); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* brand band */
+.band { background: var(--band); color: var(--band-ink); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; border-bottom: 3px solid var(--gold); }
+.band .wrap { display: flex; align-items: center; gap: 12px; min-height: 56px; padding-block: 8px; }
+.mark { font: 700 21px/1 var(--f-display); letter-spacing: .09em; color: var(--gold); text-transform: uppercase; margin: 0; }
+.mark small { display: block; font: 500 11px/1.3 var(--f-body); letter-spacing: .02em; color: var(--band-ink); opacity: .75; text-transform: none; margin-top: 3px; }
+.band .grow { flex: 1; min-width: 0; }
+.band h1 { font: 700 19px/1.1 var(--f-display); letter-spacing: .04em; margin: 0; color: #fff; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.band .ref { font: 600 12px/1.2 var(--f-mono); color: var(--gold); margin-top: 3px; }
+.icon-btn { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1px solid #3a382f; background: transparent; color: var(--band-ink); display: grid; place-items: center; }
+.icon-btn svg { width: 22px; height: 22px; }
+
+main { padding-block: 18px 120px; }
+h2.kicker { font: 700 15px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--gold-ink); margin: 26px 0 10px; display: flex; align-items: center; gap: 10px; }
+h2.kicker::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* new-cert tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.tile { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 14px 14px 13px; box-shadow: var(--shadow); display: grid; gap: 4px; min-height: 104px; position: relative; overflow: hidden; }
+.tile .code { font: 600 11px/1 var(--f-mono); color: var(--gold-ink); letter-spacing: .06em; }
+.tile b { font: 700 22px/1.05 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.tile span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+.tile::after { content: "+"; position: absolute; right: 12px; top: 8px; font: 700 26px/1 var(--f-display); color: var(--gold); }
+.tile:active { transform: scale(.99); }
+
+/* history */
+.search { width: 100%; height: 46px; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); padding: 0 14px; font-size: 16px; margin-bottom: 10px; }
+.list { display: grid; gap: 8px; }
+.item { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 11px 6px 11px 14px; }
+.item .main { min-width: 0; text-align: left; background: none; border: 0; padding: 0; display: grid; gap: 3px; }
+.item .row1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.item .ref { font: 600 12px/1 var(--f-mono); color: var(--muted); }
+.item .loc { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { font-size: 12.5px; color: var(--muted); }
+.pill { font: 600 10.5px/1 var(--f-body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px; border-radius: 99px; }
+.pill.draft { border: 1px solid var(--gold); color: var(--gold-ink); }
+.pill.issued { background: var(--sel-bg); color: var(--sel-ink); }
+.tag { font: 700 12px/1 var(--f-display); letter-spacing: .08em; text-transform: uppercase; background: var(--gold-soft); color: var(--gold-ink); padding: 4px 6px; border-radius: 4px; }
+.more { width: 44px; height: 44px; border: 0; background: none; color: var(--muted); border-radius: 8px; display: grid; place-items: center; }
+.empty { border: 1px dashed var(--line); border-radius: var(--r); padding: 22px 16px; color: var(--muted); text-align: center; }
+
+/* form */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); padding: 4px 14px 16px; margin-bottom: 14px; }
+.card > h3 { font: 700 16px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-ink); margin: 0 -14px 12px; padding: 14px 14px 11px; border-bottom: 1px solid var(--line); }
+.fields { display: grid; gap: 16px; }
+.field { display: grid; gap: 7px; min-width: 0; }
+.field > label, .field > .lbl { font-weight: 600; font-size: 14px; line-height: 1.3; }
+.field .req { color: var(--gold); margin-left: 3px; }
+.field.missing > label, .field.missing > .lbl { color: var(--danger); }
+.input { width: 100%; min-height: 48px; border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 11px 12px; font-size: 16px; }
+textarea.input { resize: vertical; line-height: 1.45; }
+.input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px var(--gold-soft); }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt { min-height: 44px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); font-weight: 500; font-size: 15px; text-align: left; }
+.opt[aria-pressed="true"] { background: var(--sel-bg); color: var(--sel-ink); border-color: var(--sel-bg); font-weight: 600; }
+.opt.multi::before { content: ""; display: inline-block; width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 3px; margin-right: 8px; vertical-align: -2px; opacity: .6; }
+.opt.multi[aria-pressed="true"]::before { opacity: 1; background: currentColor; box-shadow: inset 0 0 0 2px var(--sel-bg); }
+.note { font-size: 13.5px; line-height: 1.45; color: var(--ink); background: var(--gold-soft); border-left: 3px solid var(--gold); padding: 10px 12px; border-radius: 0 8px 8px 0; margin: 0; }
+.note.small { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12.5px; font-style: italic; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); }
+.chip { min-height: 32px; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink); }
+.tests { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 44px; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.trow:first-child { border-top: 0; }
+.trow label { font-size: 13.5px; line-height: 1.25; }
+.trow .input { min-height: 42px; font-family: var(--f-mono); font-size: 16px; padding: 8px 10px; background: var(--surface); }
+.trow .unit { font: 600 11px/1 var(--f-body); color: var(--muted); text-align: right; }
+.inline-decl { font-size: 15px; line-height: 2.2; }
+.inline-decl select { font-weight: 700; border: 1px solid var(--gold); background: var(--gold-soft); border-radius: 6px; padding: 4px 6px; font-size: 16px; }
+.sig { position: relative; border: 1px dashed var(--muted); border-radius: 8px; background: var(--surface); height: 160px; touch-action: none; overflow: hidden; }
+.sig canvas { width: 100%; height: 100%; display: block; }
+.sig .ph { position: absolute; left: 14px; bottom: 12px; right: 14px; border-top: 1px solid var(--line); padding-top: 6px; color: var(--muted); font-size: 12.5px; pointer-events: none; }
+.sig.has .ph { display: none; }
+.sig-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { min-height: 46px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); font-weight: 600; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.sm { min-height: 36px; font-size: 13.5px; padding: 0 12px; }
+.btn.primary { background: var(--sel-bg); color: var(--sel-ink); border-color: var(--sel-bg); }
+.btn.gold { background: var(--gold); color: #111110; border-color: var(--gold); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn[disabled] { opacity: .45; }
+.jobrow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.jobrow .field { flex: 1 1 140px; }
+.jobrow .btn { flex: 0 0 auto; min-height: 48px; }
+.input.mono { font-family: var(--f-mono); letter-spacing: .04em; }
+.job-card .hint { margin-top: 10px; }
+.hint.err { color: var(--danger); }
+.banner { display: flex; gap: 10px; align-items: center; border: 1px solid var(--gold); background: var(--gold-soft); color: var(--ink); border-radius: var(--r); padding: 10px 12px; font-size: 13.5px; margin-bottom: 14px; }
+
+/* action bar */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding-top: 10px; }
+.bar .wrap { display: flex; gap: 10px; align-items: center; }
+.bar .status { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; }
+.bar .btn { flex: none; }
+
+/* sheet */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 560px; background: var(--surface); border-radius: 16px 16px 0 0; padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); max-height: 88vh; overflow: auto; border-top: 3px solid var(--gold); }
+.sheet h4 { font: 700 22px/1.1 var(--f-display); letter-spacing: .03em; text-transform: uppercase; margin: 0 0 6px; }
+.sheet p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+.sheet .stack { display: grid; gap: 8px; }
+.sheet .fname { font: 600 12.5px/1.4 var(--f-mono); background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; word-break: break-all; margin-bottom: 12px; }
+.sheet ul { margin: 0 0 14px; padding-left: 18px; color: var(--ink); font-size: 14px; }
+.copyrow { display: flex; gap: 8px; align-items: center; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 6px 12px; }
+.copyrow span { flex: 1; min-width: 0; font-family: var(--f-mono); font-size: 13px; overflow-wrap: anywhere; user-select: all; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom, 0px)); background: var(--sel-bg); color: var(--sel-ink); padding: 10px 16px; border-radius: 14px; font-weight: 600; font-size: 14px; z-index: 60; text-align: center; max-width: calc(100% - 32px); }
+
+/* settings */
+.person { border: 1px solid var(--line); border-radius: var(--r); padding: 12px; display: grid; gap: 10px; background: var(--surface-2); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.setup-hero { padding: 6px 0 2px; }
+.setup-hero p { color: var(--muted); max-width: 60ch; }
+
+@media (min-width: 640px) {
+  .fields { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .field { grid-column: span 6; }
+  .field.w5 { grid-column: span 3; } .field.w3 { grid-column: span 2; } .field.w6 { grid-column: span 4; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="jspdf.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="forms.js"></script>
+<script src="pdf.js"></script>
+<script>
+(() => {
+"use strict";
+const T = window.EPForms, PDF = window.EPPdf;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const today = () => new Date().toLocaleDateString("en-CA");
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const ICON = {
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>',
+  share: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>',
+};
+
+// ---------- storage (this phone only) ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { toast("Phone storage is full. Export a backup in Settings, then delete old certificates."); return false; } },
+};
+let linkedSetup = false;
+const CFG = window.EPConfig || { company: {}, people: [], records: "" };
+let S = store.get("ep.settings", null) || { people: [], meId: null, company: {}, records: "", fergus: { url: "", key: "" } };
+// Fill blanks from config.js so preset details reach every phone without overwriting anything typed there.
+(function applyPresets() {
+  S.fergus = S.fergus || { url: "", key: "" };
+  S.company = S.company || {};
+  for (const k of Object.keys(CFG.company || {})) if (!S.company[k]) S.company[k] = CFG.company[k];
+  if (!S.records && CFG.records) S.records = CFG.records;
+  for (const p of CFG.people || []) {
+    let mine = S.people.find((x) => x.id === p.id);
+    if (!mine) { if ((S.removed || []).includes(p.id)) continue; mine = { id: p.id, sig: null }; S.people.push(mine); }
+    for (const k of ["name", "reg", "phone", "email"]) if (!mine[k] && p[k]) mine[k] = p[k];
+  }
+  // One-time setup link: ?fergus=<lookup url>&key=<access code>
+  const q = new URLSearchParams(location.search);
+  if (q.get("fergus")) { S.fergus = { url: q.get("fergus"), key: q.get("key") || "" }; history.replaceState(null, "", location.pathname); linkedSetup = true; }
+  try { localStorage.setItem("ep.settings", JSON.stringify(S)); } catch {}
+})();
+let certs = store.get("ep.certs", []);
+const saveSettings = () => store.set("ep.settings", S);
+const saveCerts = () => store.set("ep.certs", certs);
+const me = () => S.people.find((p) => p.id === S.meId) || S.people[0];
+
+function initials(name) {
+  const w = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return "EP";
+  return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : w[0].slice(0, 2)).toUpperCase();
+}
+function nextRef(code) {
+  const d = new Date(), ymd = d.toLocaleDateString("en-CA").replace(/-/g, "").slice(2);
+  const seq = store.get("ep.seq", {}); const n = (seq[ymd] || 0) + 1; seq[ymd] = n;
+  Object.keys(seq).forEach((k) => { if (k !== ymd) delete seq[k]; }); store.set("ep.seq", seq);
+  return `EP-${code}-${initials(me().name)}-${ymd}-${String(n).padStart(2, "0")}`;
+}
+function personVal(p, part) {
+  if (!p) return "";
+  if (part === "phoneEmail") return [p.phone, p.email].filter(Boolean).join("  ");
+  return p[part] || "";
+}
+
+// ---------- router ----------
+const app = $("#app");
+let view = "home", current = null, saveTimer = null;
+function go(v, opts = {}) {
+  view = v; current = opts.cert || null;
+  render(); window.scrollTo(0, 0);
+}
+function render() {
+  if (!S.meId) return renderSetup();
+  if (view === "form" && current) return renderForm();
+  if (view === "settings") return renderSettings();
+  renderHome();
+}
+
+// ---------- home ----------
+function renderHome() {
+  const q = (renderHome.q || "").toLowerCase();
+  const list = certs.slice().sort((a, b) => b.updated - a.updated)
+    .filter((c) => !q || [c.ref, c.data.location, c.data.contact, T.byId(c.tpl)?.name].join(" ").toLowerCase().includes(q));
+  app.innerHTML = `
+  <header class="band"><div class="wrap">
+    <div class="grow"><p class="mark">Electrical Potential<small>Certificates · ${esc(me().name)}'s phone</small></p></div>
+    <button class="icon-btn" id="toSettings" aria-label="Settings">${ICON.gear}</button>
+  </div></header>
+  <main class="wrap">
+    <h2 class="kicker" style="margin-top:6px">New certificate</h2>
+    <div class="tiles">${T.TEMPLATES.map((t) => `
+      <button class="tile" data-new="${t.id}"><span class="code">${t.code}</span><b>${esc(t.name)}</b><span>${esc(t.blurb)}</span></button>`).join("")}
+    </div>
+    <h2 class="kicker">On this phone</h2>
+    ${certs.length ? `<input class="search" id="q" type="search" placeholder="Search address, customer or ref" value="${esc(renderHome.q || "")}" aria-label="Search certificates">` : ""}
+    <div class="list" id="list">${list.length ? list.map(itemHtml).join("") :
+      certs.length ? `<div class="empty">No certificates match “${esc(renderHome.q)}”.</div>` :
+      `<div class="empty">Certificates you start on this phone are kept here. Pick a form above to start the first one.</div>`}</div>
+  </main>`;
+  $("#toSettings").onclick = () => go("settings");
+  app.querySelectorAll("[data-new]").forEach((b) => (b.onclick = () => newCert(b.dataset.new)));
+  const qi = $("#q"); if (qi) qi.oninput = () => { renderHome.q = qi.value; const pos = qi.selectionStart; renderHome(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
+  app.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => go("form", { cert: certs.find((c) => c.id === b.dataset.open) })));
+  app.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => certMenu(certs.find((c) => c.id === b.dataset.more))));
+}
+function itemHtml(c) {
+  const t = T.byId(c.tpl); const loc = (c.data.location || "").split("\n")[0] || "No address yet";
+  const when = new Date(c.updated).toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+  return `<div class="item">
+    <button class="main" data-open="${c.id}">
+      <span class="row1"><span class="tag">${t ? t.code : "?"}</span><span class="ref">${esc(c.ref)}</span><span class="pill ${c.status}">${c.status === "issued" ? "Issued" : "Draft"}</span></span>
+      <span class="loc">${esc(loc)}</span>
+      <span class="meta">${esc((c.data.contact || "").split("\n")[0])}${c.data.contact ? " · " : ""}${when}</span>
+    </button>
+    <button class="more" data-more="${c.id}" aria-label="More actions">${ICON.dots}</button>
+  </div>`;
+}
+
+function newCert(tplId, seed = {}) {
+  const t = T.byId(tplId);
+  const data = { ...seed };
+  for (const s of t.sections) for (const f of s.fields) {
+    if (f.auto === "today" && !data[f.id]) data[f.id] = today();
+    if (f.company && !data[f.id]) data[f.id] = S.company.name;
+    if (f.person && f.person.p !== "sig" && (f.person.g === "me" || f.person.g === "esc") && !data[f.id]) data[f.id] = personVal(me(), f.person.p);
+    if (f.type === "inline") f.parts.forEach((p) => { if (typeof p !== "string" && !data[p.id]) data[p.id] = p.options[0]; });
+  }
+  const c = { id: uid(), tpl: tplId, ref: nextRef(t.code), status: "draft", created: Date.now(), updated: Date.now(), data };
+  certs.push(c); saveCerts(); go("form", { cert: c });
+}
+
+function certMenu(c) {
+  const t = T.byId(c.tpl);
+  sheet(`<h4>${esc(t.name)}</h4><div class="fname">${esc(c.ref)}</div>
+    <div class="stack">
+      <button class="btn" data-a="open">Open</button>
+      <button class="btn" data-a="pdf">${ICON.share} Share PDF</button>
+      <button class="btn" data-a="dup">Duplicate as new certificate</button>
+      ${c.tpl === "coc" ? '<button class="btn" data-a="roi">Start Record of Inspection from this</button>' : ""}
+      <button class="btn danger" data-a="del">Delete from this phone</button>
+    </div>`, (el, close) => {
+    el.querySelector('[data-a="open"]').onclick = () => { close(); go("form", { cert: c }); };
+    el.querySelector('[data-a="pdf"]').onclick = () => { close(); issueSheet(c, true); };
+    el.querySelector('[data-a="dup"]').onclick = () => { close(); duplicate(c); };
+    const r = el.querySelector('[data-a="roi"]'); if (r) r.onclick = () => { close(); roiFromCoc(c); };
+    el.querySelector('[data-a="del"]').onclick = () => {
+      el.querySelector(".stack").innerHTML = `<p>Delete ${esc(c.ref)} from this phone? Copies you have already emailed are not affected.</p>
+        <button class="btn danger" data-a="yes">Delete</button><button class="btn" data-a="no">Keep it</button>`;
+      el.querySelector('[data-a="yes"]').onclick = () => { certs = certs.filter((x) => x.id !== c.id); saveCerts(); close(); renderHome(); toast("Deleted"); };
+      el.querySelector('[data-a="no"]').onclick = close;
+    };
+  });
+}
+function duplicate(c) {
+  const t = T.byId(c.tpl), keep = {};
+  for (const s of t.sections) for (const f of s.fields) {
+    if (f.type === "sig" || f.type === "date") continue;
+    if (f.type === "inline") { f.parts.forEach((p) => { if (typeof p !== "string") keep[p.id] = c.data[p.id]; }); continue; }
+    if (c.data[f.id] !== undefined) keep[f.id] = structuredClone(c.data[f.id]);
+  }
+  newCert(c.tpl, keep); toast("Copied. Signatures and dates are cleared.");
+}
+function roiFromCoc(c) {
+  const d = c.data, cat = [];
+  if (/photovoltaic|pv/i.test(d.riskSpec || "")) cat.push("Photovoltaic system – 6A(2)(a)(iv)");
+  if (/parallel/i.test(d.riskSpec || "")) cat.push("Mains parallel generation – 6A(2)(a)(iii)");
+  newCert("roi", {
+    location: (d.location || "").replace(/\n+/g, ", "),
+    w1Name: d.workerName || "", w1Reg: d.workerReg || "",
+    cocDetails: [c.ref, d.dates].filter(Boolean).join(", "),
+    cocAttached: ["CoC(s) attached"], category: cat,
+  });
+}
+
+// ---------- form ----------
+function shown(f, data) { return PDF.isShown(f, data); }
+function renderForm() {
+  const c = current, t = T.byId(c.tpl), d = c.data;
+  const groupsSeen = new Set();
+  app.innerHTML = `
+  <header class="band"><div class="wrap">
+    <button class="icon-btn" id="back" aria-label="Back to certificates">${ICON.back}</button>
+    <div class="grow"><h1>${esc(t.name)}</h1><div class="ref">${esc(c.ref)}</div></div>
+  </div></header>
+  <main class="wrap" id="form">
+    ${c.status === "issued" ? `<div class="banner">Issued ${new Date(c.issuedAt).toLocaleDateString("en-NZ")}. Changes here update this copy only, so re-share the PDF if you correct anything.</div>` : ""}
+    ${jobCardHtml(c, t)}
+    ${t.sections.map((s) => `<section class="card"><h3>${esc(s.title)}</h3><div class="fields">${s.fields.map((f) => fieldHtml(f, d, groupsSeen)).join("")}</div></section>`).join("")}
+  </main>
+  <div class="bar"><div class="wrap">
+    <div class="status" id="status">Saved on this phone</div>
+    <button class="btn" id="preview">Preview</button>
+    <button class="btn primary" id="issue">Finish &amp; share</button>
+  </div></div>`;
+  $("#back").onclick = () => { flush(); go("home"); };
+  $("#preview").onclick = () => { flush(); previewPdf(c); };
+  $("#issue").onclick = () => { flush(); finish(c); };
+  bindForm(c, t);
+  bindJobCard(c, t);
+}
+
+// ---------- Fergus job lookup ----------
+function jobCardHtml(c, t) {
+  const ready = !!(S.fergus.url && S.fergus.key);
+  return `<section class="card job-card"><h3>Fergus job</h3>
+    <div class="jobrow">
+      <div class="field"><label for="f-jobNo">Job number</label>
+        <input class="input mono" id="f-jobNo" value="${esc(c.data.jobNo)}" inputmode="numeric" placeholder="839" autocomplete="off"></div>
+      ${ready ? `<button type="button" class="btn gold" id="fergusFill">Fill from Fergus</button>` : ""}
+    </div>
+    <p class="hint" id="jobHint">${ready ? `Pulls the site address, customer and job description into empty fields. Needs signal; everything else works offline.` :
+      `Set up the Fergus lookup in Settings to fill this certificate from a job number.`}</p>
+  </section>`;
+}
+function bindJobCard(c, t) {
+  const inp = $("#f-jobNo"), btn = $("#fergusFill"), hint = $("#jobHint");
+  inp.oninput = () => { c.data.jobNo = inp.value.trim(); c.updated = Date.now(); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 350); };
+  inp.onkeydown = (e) => { if (e.key === "Enter" && btn) { e.preventDefault(); btn.click(); } };
+  if (!btn) return;
+  btn.onclick = async () => {
+    const n = (inp.value.match(/\d+/) || [""])[0];
+    if (!n) { inp.focus(); return toast("Type the Fergus job number first"); }
+    if (!navigator.onLine) return toast("No signal. Fill it in by hand, or try again when you're back online.");
+    btn.disabled = true; btn.textContent = "Looking up…";
+    try {
+      const job = await fergusLookup(n);
+      const filled = applyJob(c, t, job);
+      c.data.jobNo = job.jobNumber || ("EP-" + n); flush();
+      renderForm(); window.scrollTo(0, 0);
+      toast(filled.length ? `Filled ${filled.join(", ")} from ${c.data.jobNo}` : `${c.data.jobNo} found. Those fields already had something in them, so nothing was changed.`);
+    } catch (e) {
+      btn.disabled = false; btn.textContent = "Fill from Fergus";
+      hint.textContent = e.message; hint.classList.add("err");
+    }
+  };
+}
+async function fergusLookup(n) {
+  const url = new URL(S.fergus.url); url.searchParams.set("job", n); url.searchParams.set("key", S.fergus.key);
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 15000);
+  let res;
+  try { res = await fetch(url, { signal: ctl.signal, redirect: "follow" }); }
+  catch (e) { throw new Error(e.name === "AbortError" ? "Fergus took too long to answer. Check your signal and try again." : "Couldn't reach the Fergus lookup. Check your signal, or the lookup address in Settings."); }
+  finally { clearTimeout(timer); }
+  let j; try { j = await res.json(); } catch { throw new Error("The Fergus lookup sent back something unexpected. Check the lookup address in Settings."); }
+  if (!j.ok) throw new Error(j.error || "Fergus lookup failed.");
+  return j.job;
+}
+// Turn the lookup's job into certificate fields. Only empty fields are filled.
+function jobFields(job) {
+  const s = job.site || {};
+  const site = [s.address1, s.address2, s.suburb, [s.city, s.postcode].filter(Boolean).join(" ")].filter((x) => x && x.trim()).join(", ");
+  const contactName = [job.contactFirstName, job.contactLastName].filter(Boolean).join(" ");
+  const who = job.customer && contactName && job.customer !== contactName ? `${job.customer} (${contactName})` : (job.customer || contactName);
+  const reach = (job.contactItems || []).map((x) => x.value).filter(Boolean).join("  ");
+  const desc = String(job.longDescription || job.description || "").replace(/<[^>]+>/g, " ").replace(/[ \t]+\n/g, "\n").trim();
+  return { site, contact: [who, site, reach].filter(Boolean).join("\n"), description: desc, customer: job.customer || "" };
+}
+function applyJob(c, t, job) {
+  const src = jobFields(job), map = t.fergus || {}, filled = [];
+  for (const [fieldId, key] of Object.entries(map)) {
+    const v = src[key]; if (!v) continue;
+    const cur = c.data[fieldId];
+    if (cur && String(cur).trim()) continue;
+    c.data[fieldId] = v; const f = findField(t, fieldId); filled.push((f && f.label ? f.label : fieldId).toLowerCase().replace(/ \(.*\)/, ""));
+  }
+  return filled;
+}
+function wCls(f) { const w = f.w || 1; return w >= 0.99 ? "" : w >= 0.6 ? "w6" : w >= 0.45 ? "w5" : "w3"; }
+function fieldHtml(f, d, groupsSeen) {
+  const hide = shown(f, d) ? "" : " hidden";
+  const req = f.req ? '<span class="req" aria-label="required">•</span>' : "";
+  const id = "f-" + f.id;
+  let chips = "";
+  if (f.person && f.person.p !== "sig" && !groupsSeen.has(f.person.g)) {
+    groupsSeen.add(f.person.g);
+    chips = `<div class="chips">Fill from ${S.people.filter((p) => p.name).map((p) => `<button class="chip" data-fill="${f.person.g}" data-pid="${p.id}">${esc(p.name)}</button>`).join("")}</div>`;
+  }
+  const wrap = (inner, lbl = true) => `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}>${chips}${lbl && f.label ? `<label for="${id}">${esc(f.label)}${req}</label>` : ""}${inner}</div>`;
+  const v = d[f.id];
+  switch (f.type) {
+    case "text": return wrap(`<input class="input" id="${id}" value="${esc(v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""} ${f.list ? `list="${id}-l"` : ""} autocomplete="off">${f.list ? `<datalist id="${id}-l">${f.list.map((o) => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`);
+    case "date": return wrap(`<input class="input" type="date" id="${id}" value="${esc(v)}">`);
+    case "textarea": return wrap(`<textarea class="input" id="${id}" rows="${Math.max(2, f.rows || 2)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""}>${esc(v)}</textarea>`);
+    case "choice": case "yesno": case "multi": {
+      const opts = f.type === "yesno" ? ["Yes", "No"] : f.options; const sel = Array.isArray(v) ? v : v ? [v] : [];
+      return `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}>${f.label ? `<div class="lbl" id="${id}-l">${esc(f.label)}${req}</div>` : ""}<div class="opts" role="group" aria-labelledby="${id}-l">${opts.map((o) => `<button type="button" class="opt${f.type === "multi" ? " multi" : ""}" data-opt="${f.id}" data-val="${esc(o)}" aria-pressed="${sel.includes(o)}">${esc(o)}</button>`).join("")}</div></div>`;
+    }
+    case "note": return `<div class="field" data-f="${f.id}"${hide}><p class="note${f.small ? " small" : ""}">${esc(f.text)}</p></div>`;
+    case "inline": return `<div class="field" data-f="${f.id}"><p class="inline-decl">${f.parts.map((p) => typeof p === "string" ? esc(p) :
+      `<select id="f-${p.id}" aria-label="Choose wording">${p.options.map((o) => `<option${(d[p.id] || p.options[0]) === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`).join("")}</p></div>`;
+    case "tests": {
+      const tv = v || {};
+      return `<div class="field" data-f="${f.id}"${hide}><div class="lbl">${esc(f.label)}</div><div class="tests">${f.rows.map((r) => `<div class="trow"><label for="${id}-${r.id}">${esc(r.label)}</label><input class="input" id="${id}-${r.id}" data-test="${r.id}" value="${esc(tv[r.id])}" placeholder="${esc(r.ph || "")}" autocomplete="off" inputmode="text"><span class="unit">${esc(r.unit)}</span></div>`).join("")}</div></div>`;
+    }
+    case "sig": {
+      const owner = f.person ? S.people : [];
+      const saved = owner.filter((p) => p.sig);
+      return `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}><div class="lbl">${esc(f.label)}${req}</div>
+        <div class="sig${v ? " has" : ""}" id="${id}"><canvas aria-label="Signature pad"></canvas><div class="ph">Sign here with your finger</div></div>
+        <div class="sig-tools">
+          <button type="button" class="btn sm" data-sigclear="${f.id}">Clear</button>
+          ${f.copyFrom ? `<button type="button" class="btn sm" data-sigcopy="${f.id}">Same as CoC signature</button>` : ""}
+          ${saved.map((p) => `<button type="button" class="btn sm" data-sigsaved="${f.id}" data-pid="${p.id}">Use ${esc(p.name)}'s saved signature</button>`).join("")}
+        </div></div>`;
+    }
+  }
+  return "";
+}
+function bindForm(c, t) {
+  const d = c.data, form = $("#form");
+  const changed = () => { c.updated = Date.now(); $("#status").textContent = "Saving…"; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 350); refreshVisibility(t, d); };
+  for (const s of t.sections) for (const f of s.fields) {
+    if (["text", "date", "textarea"].includes(f.type)) {
+      const el = $("#f-" + f.id); el.oninput = () => { d[f.id] = el.value; el.closest(".field").classList.remove("missing"); changed(); };
+      if (f.type === "textarea") { const grow = () => { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; }; el.addEventListener("input", grow); requestAnimationFrame(grow); }
+    }
+    if (f.type === "tests") form.querySelectorAll(`[data-f="${f.id}"] [data-test]`).forEach((el) => (el.oninput = () => { d[f.id] = { ...(d[f.id] || {}), [el.dataset.test]: el.value }; changed(); }));
+    if (f.type === "inline") f.parts.forEach((p) => { if (typeof p !== "string") { const el = $("#f-" + p.id); el.onchange = () => { d[p.id] = el.value; changed(); }; } });
+    if (f.type === "sig") sigPad(f, c, changed);
+  }
+  form.querySelectorAll("[data-opt]").forEach((b) => (b.onclick = () => {
+    const f = findField(t, b.dataset.opt), val = b.dataset.val;
+    if (f.type === "multi") { const a = new Set(d[f.id] || []); a.has(val) ? a.delete(val) : a.add(val); d[f.id] = [...a]; }
+    else d[f.id] = d[f.id] === val ? "" : val;
+    b.parentElement.querySelectorAll(".opt").forEach((o) => o.setAttribute("aria-pressed", Array.isArray(d[f.id]) ? d[f.id].includes(o.dataset.val) : d[f.id] === o.dataset.val));
+    b.closest(".field").classList.remove("missing"); changed();
+  }));
+  form.querySelectorAll("[data-fill]").forEach((b) => (b.onclick = () => {
+    const p = S.people.find((x) => x.id === b.dataset.pid);
+    for (const s of t.sections) for (const f of s.fields) if (f.person && f.person.g === b.dataset.fill && f.person.p !== "sig") {
+      d[f.id] = personVal(p, f.person.p); const el = $("#f-" + f.id); if (el) el.value = d[f.id];
+    }
+    changed(); toast(`Filled ${p.name}'s details`);
+  }));
+}
+function findField(t, id) { for (const s of t.sections) for (const f of s.fields) if (f.id === id) return f; }
+function refreshVisibility(t, d) {
+  for (const s of t.sections) for (const f of s.fields) if (f.showIf) { const el = document.querySelector(`[data-f="${f.id}"]`); if (el) el.hidden = !shown(f, d); }
+}
+function flush() {
+  clearTimeout(saveTimer); if (!current) return;
+  if (saveCerts()) { const st = $("#status"); if (st) st.textContent = "Saved on this phone"; }
+}
+
+// ---------- signatures ----------
+function sigPad(f, c, changed) {
+  const box = $("#f-" + f.id), cv = box.querySelector("canvas"), ctx = cv.getContext("2d");
+  let strokes = [], drawing = false;
+  function size() {
+    const r = box.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paint();
+  }
+  function paint() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const v = c.data[f.id];
+    if (!strokes.length && v && v.img) { const im = new Image(); im.onload = () => { const r = box.getBoundingClientRect(); const s = Math.min((r.width - 20) / im.width, (r.height - 20) / im.height, 1.4); ctx.drawImage(im, (r.width - im.width * s) / 2, (r.height - im.height * s) / 2, im.width * s, im.height * s); }; im.src = v.img; }
+    ctx.lineCap = ctx.lineJoin = "round"; ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#111";
+    for (const st of strokes) { ctx.lineWidth = 2.4; ctx.beginPath(); st.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); if (st.length === 1) ctx.lineTo(st[0].x + 0.1, st[0].y); ctx.stroke(); }
+  }
+  const pt = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  cv.onpointerdown = (e) => { if (!strokes.length && c.data[f.id]) { c.data[f.id] = null; } drawing = true; cv.setPointerCapture(e.pointerId); strokes.push([pt(e)]); box.classList.add("has"); paint(); };
+  cv.onpointermove = (e) => { if (!drawing) return; (e.getCoalescedEvents ? e.getCoalescedEvents() : [e]).forEach((ev) => strokes[strokes.length - 1].push(pt(ev))); paint(); };
+  cv.onpointerup = cv.onpointercancel = () => { if (!drawing) return; drawing = false; c.data[f.id] = exportSig(strokes); changed(); };
+  const set = (v) => { strokes = []; c.data[f.id] = v; box.classList.toggle("has", !!v); paint(); changed(); };
+  $(`[data-sigclear="${f.id}"]`).onclick = () => set(null);
+  const cp = $(`[data-sigcopy="${f.id}"]`); if (cp) cp.onclick = () => { const src = c.data[f.copyFrom]; if (!src) return toast("Sign the CoC first"); set(structuredClone(src)); };
+  document.querySelectorAll(`[data-sigsaved="${f.id}"]`).forEach((b) => (b.onclick = () => { const p = S.people.find((x) => x.id === b.dataset.pid); set(structuredClone(p.sig)); }));
+  new ResizeObserver(size).observe(box);
+}
+// Crop to the ink and save as a small PNG so history stays light on phone storage.
+function exportSig(strokes) {
+  const pts = strokes.flat(); if (!pts.length) return null;
+  const pad = 6, minX = Math.min(...pts.map((p) => p.x)) - pad, minY = Math.min(...pts.map((p) => p.y)) - pad;
+  const w = Math.max(...pts.map((p) => p.x)) + pad - minX, h = Math.max(...pts.map((p) => p.y)) + pad - minY;
+  const scale = Math.min(2, 520 / w), cv = document.createElement("canvas");
+  cv.width = Math.max(1, Math.round(w * scale)); cv.height = Math.max(1, Math.round(h * scale));
+  const x = cv.getContext("2d"); x.scale(scale, scale); x.translate(-minX, -minY);
+  x.lineCap = x.lineJoin = "round"; x.strokeStyle = "#101010"; x.lineWidth = 2.6;
+  for (const st of strokes) { x.beginPath(); st.forEach((p, i) => (i ? x.lineTo(p.x, p.y) : x.moveTo(p.x, p.y))); if (st.length === 1) x.lineTo(st[0].x + 0.1, st[0].y); x.stroke(); }
+  return { img: cv.toDataURL("image/png"), w: cv.width, h: cv.height };
+}
+
+// ---------- PDF + sharing ----------
+function fileName(c) {
+  const loc = (c.data.location || "").split(/[\n,]/)[0].replace(/[^\w\s-]/g, "").trim().slice(0, 40);
+  return `${c.ref}${c.data.jobNo ? " " + c.data.jobNo.replace(/[^\w-]/g, "") : ""}${loc ? " " + loc : ""}.pdf`;
+}
+function buildPdf(c) {
+  const doc = PDF.renderCert(window.jspdf.jsPDF, T.byId(c.tpl), { ...c.data, _ref: c.ref }, S);
+  return new File([doc.output("blob")], fileName(c), { type: "application/pdf" });
+}
+function previewPdf(c) {
+  try { const url = URL.createObjectURL(buildPdf(c)); const w = window.open(url, "_blank"); if (!w) location.href = url; setTimeout(() => URL.revokeObjectURL(url), 60000); }
+  catch (e) { toast("Couldn't build the PDF: " + e.message); }
+}
+function missingFields(c) {
+  const t = T.byId(c.tpl), d = c.data, out = [];
+  for (const s of t.sections) for (const f of s.fields) {
+    if (!f.req || !shown(f, d)) continue;
+    const v = d[f.id]; const empty = v == null || v === "" || (Array.isArray(v) && !v.length);
+    if (empty) out.push({ f, s });
+  }
+  return out;
+}
+function finish(c) {
+  const miss = missingFields(c);
+  document.querySelectorAll(".field.missing").forEach((e) => e.classList.remove("missing"));
+  if (!miss.length) return issueSheet(c);
+  miss.forEach(({ f }) => document.querySelector(`[data-f="${f.id}"]`)?.classList.add("missing"));
+  sheet(`<h4>${miss.length} field${miss.length > 1 ? "s" : ""} still empty</h4>
+    <ul>${miss.slice(0, 8).map(({ f, s }) => `<li>${esc(f.label || s.title)}</li>`).join("")}${miss.length > 8 ? `<li>and ${miss.length - 8} more</li>` : ""}</ul>
+    <div class="stack"><button class="btn primary" data-a="fix">Go to the first one</button><button class="btn" data-a="anyway">Issue anyway</button></div>`, (el, close) => {
+    el.querySelector('[data-a="fix"]').onclick = () => { close(); const n = document.querySelector(`[data-f="${miss[0].f.id}"]`); n?.scrollIntoView({ behavior: "smooth", block: "center" }); n?.querySelector("input,textarea,button")?.focus({ preventScroll: true }); };
+    el.querySelector('[data-a="anyway"]').onclick = () => { close(); issueSheet(c); };
+  });
+}
+function issueSheet(c, reshare = false) {
+  let file;
+  try { file = buildPdf(c); } catch (e) { return toast("Couldn't build the PDF: " + e.message); }
+  if (c.status !== "issued") { c.status = "issued"; c.issuedAt = Date.now(); saveCerts(); }
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  const rec = S.records;
+  sheet(`<h4>${reshare ? "Share certificate" : "Certificate ready"}</h4>
+    <div class="fname">${esc(file.name)}</div>
+    ${rec ? `<p>Send it to the records inbox, and to the customer if they need a copy.</p>
+      <div class="copyrow" style="margin-bottom:12px"><span>${esc(rec)}</span><button class="btn sm" data-a="copy">Copy</button></div>` :
+      `<p>Add your records Gmail address in Settings so it's shown here every time.</p>`}
+    <div class="stack">
+      ${canShare ? `<button class="btn gold" data-a="share">${ICON.share} Share PDF</button><p class="hint" style="margin:0 0 4px">Pick Gmail or Mail in the share menu and send it to the address above.</p>` : ""}
+      <button class="btn${canShare ? "" : " gold"}" data-a="save">Save PDF to phone</button>
+      <button class="btn" data-a="view">View PDF</button>
+      <button class="btn" data-a="done">Done</button>
+    </div>`, (el, close) => {
+    const cp = el.querySelector('[data-a="copy"]');
+    if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(rec); toast("Address copied"); } catch { const r = document.createRange(); r.selectNodeContents(el.querySelector(".copyrow span")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Address selected. Tap Copy."); } };
+    const sh = el.querySelector('[data-a="share"]');
+    if (sh) sh.onclick = async () => {
+      try { await navigator.share({ files: [file], title: file.name.replace(/\.pdf$/, ""), text: `${T.byId(c.tpl).title} ${c.ref}` }); toast("Shared"); }
+      catch (e) { if (e.name !== "AbortError") toast("Sharing didn't work here. Use Save PDF instead."); }
+    };
+    el.querySelector('[data-a="save"]').onclick = () => { const url = URL.createObjectURL(file); const a = document.createElement("a"); a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); toast("PDF saved"); };
+    el.querySelector('[data-a="view"]').onclick = () => previewPdf(c);
+    el.querySelector('[data-a="done"]').onclick = () => { close(); go("home"); };
+  });
+}
+
+// ---------- settings ----------
+function personEditor(p, i) {
+  return `<div class="person" data-pi="${i}">
+    <div class="grid2">
+      <div class="field"><label for="pn-${i}">Name</label><input class="input" id="pn-${i}" data-k="name" value="${esc(p.name)}" autocomplete="name"></div>
+      <div class="field"><label for="pr-${i}">Registration / practising licence #</label><input class="input" id="pr-${i}" data-k="reg" value="${esc(p.reg)}"></div>
+      <div class="field"><label for="pp-${i}">Phone</label><input class="input" id="pp-${i}" data-k="phone" value="${esc(p.phone)}" inputmode="tel" autocomplete="tel"></div>
+      <div class="field"><label for="pe-${i}">Email</label><input class="input" id="pe-${i}" data-k="email" value="${esc(p.email)}" inputmode="email" autocomplete="email"></div>
+    </div>
+    <div class="field"><div class="lbl">Saved signature</div>
+      <div class="sig${p.sig ? " has" : ""}" id="ps-${i}" style="height:130px"><canvas aria-label="Saved signature pad"></canvas><div class="ph">Optional. Sign once here to reuse with one tap.</div></div>
+      <div class="sig-tools"><button type="button" class="btn sm" data-psclear="${i}">Clear signature</button>${S.people.length > 1 ? `<button type="button" class="btn sm danger" data-premove="${i}">Remove ${esc(p.name || "person")}</button>` : ""}</div>
+    </div>
+  </div>`;
+}
+function renderSettings(setup = false) {
+  app.innerHTML = `
+  <header class="band"><div class="wrap">
+    ${setup ? "" : `<button class="icon-btn" id="back" aria-label="Back">${ICON.back}</button>`}
+    <div class="grow">${setup ? `<p class="mark">Electrical Potential<small>Certificates · first-time setup</small></p>` : `<h1>Settings</h1>`}</div>
+  </div></header>
+  <main class="wrap">
+    ${setup ? `<div class="setup-hero"><h2 class="kicker" style="margin-top:6px">Who uses this phone?</h2><p>Certificates on this phone are numbered with your initials and prefilled with your details. You can change this later in Settings.</p></div>` : `<h2 class="kicker" style="margin-top:6px">This phone</h2>`}
+    <div class="opts" id="whoami">${S.people.map((p) => `<button class="opt" data-me="${p.id}" aria-pressed="${p.id === S.meId}">${esc(p.name || "Unnamed")}</button>`).join("")}</div>
+    <h2 class="kicker">Electricians</h2>
+    <div class="list" id="people">${S.people.map(personEditor).join("")}</div>
+    <button class="btn" id="addPerson" style="margin-top:10px">Add an electrician</button>
+    <h2 class="kicker">Fergus lookup</h2>
+    <p class="hint" style="margin-bottom:10px">Lets a certificate fill itself from a Fergus job number. The lookup address and access code come from your Fergus lookup setup; your Fergus key itself never goes on the phone.</p>
+    <div class="grid2">
+      <div class="field"><label for="fgu">Lookup address</label><input class="input" id="fgu" value="${esc(S.fergus.url)}" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+      <div class="field"><label for="fgk">Access code</label><input class="input" id="fgk" value="${esc(S.fergus.key)}" autocomplete="off"></div>
+    </div>
+    <div class="sig-tools" style="margin-top:10px"><button class="btn sm" id="fgTest">Test with a job number</button><button class="btn sm" id="fgLink">Copy setup link for another phone</button></div>
+    <p class="hint" id="fgOut" style="margin-top:8px"></p>
+    <h2 class="kicker">Records inbox</h2>
+    <div class="field"><label for="rec">Gmail address certificates are sent to</label><input class="input" id="rec" inputmode="email" value="${esc(S.records)}" placeholder="certs@gmail.com"></div>
+    <h2 class="kicker">Company on the certificate</h2>
+    <div class="grid2">
+      <div class="field"><label for="cn">Company name</label><input class="input" id="cn" data-ck="name" value="${esc(S.company.name)}"></div>
+      <div class="field"><label for="cp">Phone</label><input class="input" id="cp" data-ck="phone" value="${esc(S.company.phone)}" inputmode="tel"></div>
+      <div class="field"><label for="ce">Email</label><input class="input" id="ce" data-ck="email" value="${esc(S.company.email)}" inputmode="email"></div>
+      <div class="field"><label for="ca">Address</label><input class="input" id="ca" data-ck="address" value="${esc(S.company.address)}"></div>
+    </div>
+    ${setup ? `<div style="margin-top:22px"><button class="btn primary" id="startUsing" style="width:100%">Start using EP Certs</button></div>` : `
+    <h2 class="kicker">Backup</h2>
+    <p class="hint">Certificates live only on this phone. A backup file moves them to a new phone. ${certs.length} certificate${certs.length === 1 ? "" : "s"} stored, about ${Math.round(JSON.stringify(certs).length / 1024)} KB.</p>
+    <div class="sig-tools" style="margin-top:10px"><button class="btn" id="exp">Save backup file</button><label class="btn" for="imp">Restore from backup</label><input id="imp" type="file" accept="application/json,.json" hidden></div>`}
+  </main>`;
+  const b = $("#back"); if (b) b.onclick = () => go("home");
+  app.querySelectorAll("[data-me]").forEach((x) => (x.onclick = () => { S.meId = x.dataset.me; saveSettings(); app.querySelectorAll("[data-me]").forEach((y) => y.setAttribute("aria-pressed", y.dataset.me === S.meId)); }));
+  app.querySelectorAll("[data-pi]").forEach((el) => {
+    const i = +el.dataset.pi, p = S.people[i];
+    el.querySelectorAll("[data-k]").forEach((inp) => (inp.oninput = () => { p[inp.dataset.k] = inp.value; saveSettings(); if (inp.dataset.k === "name") { const o = $(`[data-me="${p.id}"]`); if (o) o.textContent = inp.value || "Unnamed"; } }));
+    savedSigPad(el.querySelector(".sig"), p);
+    el.querySelector("[data-psclear]").onclick = () => { p.sig = null; saveSettings(); renderSettings(setup); };
+    const rm = el.querySelector("[data-premove]"); if (rm) rm.onclick = () => { S.people.splice(i, 1); S.removed = [...(S.removed || []), p.id]; if (S.meId === p.id) S.meId = setup ? null : S.people[0].id; saveSettings(); renderSettings(setup); };
+  });
+  $("#addPerson").onclick = () => { S.people.push({ id: "p-" + uid(), name: "", reg: "", phone: "", email: "", sig: null }); saveSettings(); renderSettings(setup); $(`#pn-${S.people.length - 1}`)?.focus(); };
+  $("#rec").oninput = (e) => { S.records = e.target.value.trim(); saveSettings(); };
+  app.querySelectorAll("[data-ck]").forEach((inp) => (inp.oninput = () => { S.company[inp.dataset.ck] = inp.value; saveSettings(); }));
+  const fgu = $("#fgu"), fgk = $("#fgk"), out = $("#fgOut");
+  fgu.oninput = () => { S.fergus.url = fgu.value.trim(); saveSettings(); };
+  fgk.oninput = () => { S.fergus.key = fgk.value.trim(); saveSettings(); };
+  $("#fgTest").onclick = async () => {
+    if (!S.fergus.url || !S.fergus.key) { out.textContent = "Fill in the lookup address and access code first."; return; }
+    const n = S.lastTestJob || "";
+    out.innerHTML = `<span style="display:flex;gap:8px;align-items:center"><input class="input mono" id="fgN" style="max-width:120px;min-height:40px" inputmode="numeric" placeholder="Job no." value="${esc(n)}"><button class="btn sm gold" id="fgGo">Look up</button></span>`;
+    const go2 = async () => {
+      const v = ($("#fgN").value.match(/\d+/) || [""])[0]; if (!v) return;
+      S.lastTestJob = v; saveSettings(); $("#fgGo").disabled = true;
+      try { const job = await fergusLookup(v); const j = jobFields(job); out.textContent = `Working. ${job.jobNumber}: ${j.customer || "no customer"}, ${j.site || "no site address"}.`; }
+      catch (e) { out.textContent = e.message; }
+    };
+    $("#fgGo").onclick = go2; $("#fgN").onkeydown = (e) => { if (e.key === "Enter") go2(); }; $("#fgN").focus();
+  };
+  $("#fgLink").onclick = async () => {
+    if (!S.fergus.url || !S.fergus.key) { out.textContent = "Fill in the lookup address and access code first."; return; }
+    const link = `${location.origin}${location.pathname}?fergus=${encodeURIComponent(S.fergus.url)}&key=${encodeURIComponent(S.fergus.key)}`;
+    try { await navigator.clipboard.writeText(link); out.textContent = "Setup link copied. Send it to the other phone and open it there once. It contains the access code, so only send it to your team."; }
+    catch { out.innerHTML = `<span class="copyrow"><span>${esc(link)}</span></span>`; }
+  };
+  const st = $("#startUsing"); if (st) st.onclick = () => { if (!S.meId) return toast("Tap your name at the top first"); go("home"); };
+  const ex = $("#exp"); if (ex) ex.onclick = () => {
+    const blob = new Blob([JSON.stringify({ app: "ep-certs", v: 1, exported: new Date().toISOString(), settings: S, certs }, null, 1)], { type: "application/json" });
+    const file = new File([blob], `ep-certs-backup-${today()}.json`, { type: "application/json" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) navigator.share({ files: [file] }).catch(() => {});
+    else { const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; a.click(); }
+  };
+  const im = $("#imp"); if (im) im.onchange = async () => {
+    try {
+      const j = JSON.parse(await im.files[0].text()); if (j.app !== "ep-certs") throw new Error("not an EP Certs backup");
+      const have = new Set(certs.map((c) => c.id)); const add = j.certs.filter((c) => !have.has(c.id));
+      certs = certs.concat(add); saveCerts(); toast(`Restored ${add.length} certificate${add.length === 1 ? "" : "s"}`); renderSettings();
+    } catch (e) { toast("That file couldn't be restored: " + e.message); }
+  };
+}
+function renderSetup() { renderSettings(true); }
+function savedSigPad(box, p) {
+  const cv = box.querySelector("canvas"), ctx = cv.getContext("2d"); let strokes = [], drawing = false;
+  const paint = () => {
+    ctx.clearRect(0, 0, cv.width, cv.height); ctx.lineCap = ctx.lineJoin = "round"; ctx.lineWidth = 2.4;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim();
+    if (!strokes.length && p.sig) { const im = new Image(); im.onload = () => { const r = box.getBoundingClientRect(); const s = Math.min((r.width - 20) / im.width, (r.height - 20) / im.height, 1.4); ctx.drawImage(im, (r.width - im.width * s) / 2, (r.height - im.height * s) / 2, im.width * s, im.height * s); }; im.src = p.sig.img; }
+    for (const st of strokes) { ctx.beginPath(); st.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.stroke(); }
+  };
+  const size = () => { const r = box.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2); cv.width = r.width * dpr; cv.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); paint(); };
+  const pt = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  cv.onpointerdown = (e) => { drawing = true; cv.setPointerCapture(e.pointerId); if (!strokes.length) p.sig = null; strokes.push([pt(e)]); box.classList.add("has"); paint(); };
+  cv.onpointermove = (e) => { if (drawing) { strokes[strokes.length - 1].push(pt(e)); paint(); } };
+  cv.onpointerup = cv.onpointercancel = () => { if (!drawing) return; drawing = false; p.sig = exportSig(strokes); saveSettings(); };
+  new ResizeObserver(size).observe(box);
+}
+
+// ---------- small UI helpers ----------
+function sheet(html, bind) {
+  const s = document.createElement("div"); s.className = "scrim";
+  s.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  const close = () => s.remove();
+  s.onclick = (e) => { if (e.target === s) close(); };
+  document.body.appendChild(s); bind(s, close);
+  s.querySelector("button")?.focus({ preventScroll: true });
+}
+function toast(msg) {
+  document.querySelectorAll(".toast").forEach((t) => t.remove());
+  const t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+window.addEventListener("pagehide", flush);
+document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); });
+
+render();
+if (linkedSetup) toast("Fergus lookup set up on this phone");
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+window.__ep = { newCert, get certs() { return certs; }, S };
+})();
+</script>
+</body>
+</html>
