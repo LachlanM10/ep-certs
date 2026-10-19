@@ -1,5 +1,5 @@
 // EP Certs offline cache. Bump VERSION when you change any app file.
-const VERSION = "ep-certs-v3";
+const VERSION = "ep-certs-v4";
 const SHELL = ["./", "index.html", "config.js", "forms.js", "pdf.js", "jspdf.umd.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });

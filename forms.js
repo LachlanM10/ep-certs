@@ -20,6 +20,7 @@
  *   auto     "today" — filled with today's date on a new certificate
  *   list     suggestions for a text field
  * Template keys:
+ *   isSolar  (data) => true when this is solar work, so licence fields use the solar (PV) licence
  *   fergus   {fieldId: "site"|"contact"|"description"|"customer"} — filled from a Fergus job number
  */
 (function (root) {
@@ -46,6 +47,7 @@
       title: "Electrical Certificate of Compliance & Electrical Safety Certificate",
       blurb: "Certificate of Compliance with the ESC on the same sheet. Use for most jobs.",
       fergus: { location: "site", contact: "contact", desc: "description" },
+      isSolar: (d) => /photovoltaic|\bpv\b|solar/i.test(d.riskSpec || "") || /4777|5033/.test(d.addStdSpec || "") || /grid-connected inverter|photovoltaic|\bpv\b|solar/i.test(d.supply || ""),
       intro: "This form has been designed to be used by licensed electrical workers to certify that installations or part installations under Part 1 or Part 2 of AS/NZS 3000 are safe to be connected to the specified system of electrical supply.",
       footer: [CUSTOMER_COPY, BUILDING_ACT],
       sections: [
@@ -114,6 +116,7 @@
       title: "Electrical Safety Certificate",
       blurb: "Standalone safety certificate for connecting an installation.",
       fergus: { location: "site", contact: "contact", desc: "description" },
+      isSolar: (d) => /photovoltaic|\bpv\b|solar/i.test(d.desc || ""),
       intro: "This Electrical Safety Certificate provides a legally recognisable statement that the connected installation or part installation, or any fitting that supplies an installation or a part of an installation, is safe to use following prescribed electrical work.",
       footer: [CUSTOMER_COPY, BUILDING_ACT],
       sections: [
@@ -146,11 +149,12 @@
       subtitle: "Pursuant to the Electricity (Safety) Regulations 2010",
       blurb: "Inspection of high-risk work such as PV and mains parallel generation.",
       fergus: { location: "site", inspected: "description" },
+      isSolar: (d) => (d.category || []).some((c) => /photovoltaic/i.test(c)),
       footer: ["Record of Inspection (RoI)"],
       sections: [
         { title: "Issuer (inspector) details", fields: [
           { id: "inspName", type: "text", label: "Name of inspector", w: 0.5, req: true, person: { g: "me", p: "name" } },
-          { id: "inspReg", type: "text", label: "Registration #", w: 0.5, req: true, person: { g: "me", p: "reg" } },
+          { id: "inspReg", type: "text", label: "Registration #", w: 0.5, req: true, person: { g: "me", p: "regInsp" } },
           { id: "inspEmail", type: "text", label: "Email address", w: 0.5, person: { g: "me", p: "email" } },
           { id: "inspPhone", type: "text", label: "Telephone", w: 0.5, person: { g: "me", p: "phone" } },
         ]},

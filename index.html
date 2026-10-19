@@ -102,6 +102,8 @@ textarea.input { resize: vertical; line-height: 1.45; }
 .note { font-size: 13.5px; line-height: 1.45; color: var(--ink); background: var(--gold-soft); border-left: 3px solid var(--gold); padding: 10px 12px; border-radius: 0 8px 8px 0; margin: 0; }
 .note.small { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12.5px; font-style: italic; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); }
+.chips.lic { margin-top: 2px; }
+.chip small { font-weight: 500; color: var(--muted); }
 .chip { min-height: 32px; padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--ink); }
 .tests { display: grid; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .trow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 44px; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-top: 1px solid var(--line); background: var(--surface-2); }
@@ -201,7 +203,7 @@ let S = store.get("ep.settings", null) || { people: [], meId: null, company: {},
   for (const p of CFG.people || []) {
     let mine = S.people.find((x) => x.id === p.id);
     if (!mine) { if ((S.removed || []).includes(p.id)) continue; mine = { id: p.id, sig: null }; S.people.push(mine); }
-    for (const k of ["name", "reg", "phone", "email"]) if (!mine[k] && p[k]) mine[k] = p[k];
+    for (const k of ["name", "reg", "regPV", "regInsp", "phone", "email"]) if (!mine[k] && p[k]) mine[k] = p[k];
   }
   // One-time setup link: ?fergus=<lookup url>&key=<access code>
   const q = new URLSearchParams(location.search);
@@ -227,6 +229,7 @@ function nextRef(code) {
 function personVal(p, part) {
   if (!p) return "";
   if (part === "phoneEmail") return [p.phone, p.email].filter(Boolean).join("  ");
+  if (part === "regInsp") return p.regInsp || p.reg || "";
   return p[part] || "";
 }
 
@@ -392,7 +395,7 @@ function bindJobCard(c, t) {
     btn.disabled = true; btn.textContent = "Looking up…";
     try {
       const job = await fergusLookup(n);
-      const filled = applyJob(c, t, job);
+      const filled = applyJob(c, t, job); licenceSwitch(c, t);
       c.data.jobNo = job.jobNumber || ("EP-" + n); flush();
       renderForm(); window.scrollTo(0, 0);
       toast(filled.length ? `Filled ${filled.join(", ")} from ${c.data.jobNo}` : `${c.data.jobNo} found. Those fields already had something in them, so nothing was changed.`);
@@ -446,7 +449,7 @@ function fieldHtml(f, d, groupsSeen) {
   const wrap = (inner, lbl = true) => `<div class="field ${wCls(f)}" data-f="${f.id}"${hide}>${chips}${lbl && f.label ? `<label for="${id}">${esc(f.label)}${req}</label>` : ""}${inner}</div>`;
   const v = d[f.id];
   switch (f.type) {
-    case "text": return wrap(`<input class="input" id="${id}" value="${esc(v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""} ${f.list ? `list="${id}-l"` : ""} autocomplete="off">${f.list ? `<datalist id="${id}-l">${f.list.map((o) => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`);
+    case "text": return wrap(`${licenceChips(f) ? "" : ""}<input class="input" id="${id}" value="${esc(v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""} ${f.list ? `list="${id}-l"` : ""} autocomplete="off">${licenceChips(f)}${f.list ? `<datalist id="${id}-l">${f.list.map((o) => `<option value="${esc(o)}">`).join("")}</datalist>` : ""}`);
     case "date": return wrap(`<input class="input" type="date" id="${id}" value="${esc(v)}">`);
     case "textarea": return wrap(`<textarea class="input" id="${id}" rows="${Math.max(2, f.rows || 2)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ""}>${esc(v)}</textarea>`);
     case "choice": case "yesno": case "multi": {
@@ -476,7 +479,7 @@ function fieldHtml(f, d, groupsSeen) {
 }
 function bindForm(c, t) {
   const d = c.data, form = $("#form");
-  const changed = () => { c.updated = Date.now(); $("#status").textContent = "Saving…"; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 350); refreshVisibility(t, d); };
+  const changed = () => { c.updated = Date.now(); $("#status").textContent = "Saving…"; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 350); refreshVisibility(t, d); licenceSwitch(c, t); };
   for (const s of t.sections) for (const f of s.fields) {
     if (["text", "date", "textarea"].includes(f.type)) {
       const el = $("#f-" + f.id); el.oninput = () => { d[f.id] = el.value; el.closest(".field").classList.remove("missing"); changed(); };
@@ -500,6 +503,32 @@ function bindForm(c, t) {
     }
     changed(); toast(`Filled ${p.name}'s details`);
   }));
+  form.querySelectorAll("[data-lic]").forEach((b) => (b.onclick = () => {
+    const id = b.dataset.lic; d[id] = b.dataset.v; $("#f-" + id).value = d[id];
+    c.updated = Date.now(); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 350); toast(`Licence ${d[id]}`);
+  }));
+}
+// Licence fields follow the work: solar certificates use each person's solar (PV) licence,
+// everything else their general licence. Only numbers that belong to a saved person are swapped,
+// so a number typed by hand is never overwritten.
+function licenceSwitch(c, t) {
+  if (!t.isSolar) return;
+  const solar = !!t.isSolar(c.data), swapped = [];
+  for (const s of t.sections) for (const f of s.fields) {
+    if (!f.person || f.person.p !== "reg") continue;
+    const v = (c.data[f.id] || "").trim(); if (!v) continue;
+    const p = S.people.find((x) => x.reg === v || (x.regPV && x.regPV === v)); if (!p || !p.regPV) continue;
+    const want = solar ? p.regPV : p.reg;
+    if (want && want !== v) { c.data[f.id] = want; const el = $("#f-" + f.id); if (el) el.value = want; swapped.push(want); }
+  }
+  if (swapped.length) toast(solar ? `Solar work: using licence ${swapped[0]}` : `Using general licence ${swapped[0]}`);
+}
+function licenceChips(f) {
+  if (!f.person || !["reg", "regInsp"].includes(f.person.p)) return "";
+  const out = [];
+  for (const p of S.people) for (const [k, tag] of [["reg", ""], ["regPV", "solar"], ["regInsp", "inspector"]]) if (p[k]) out.push({ v: p[k], who: p.name.split(" ")[0], tag });
+  if (out.length < 2) return "";
+  return `<div class="chips lic">${out.map((o) => `<button type="button" class="chip" data-lic="${f.id}" data-v="${esc(o.v)}">${esc(o.v)}<small> ${esc(o.who)}${o.tag ? " · " + o.tag : ""}</small></button>`).join("")}</div>`;
 }
 function findField(t, id) { for (const s of t.sections) for (const f of s.fields) if (f.id === id) return f; }
 function refreshVisibility(t, d) {
@@ -618,7 +647,9 @@ function personEditor(p, i) {
   return `<div class="person" data-pi="${i}">
     <div class="grid2">
       <div class="field"><label for="pn-${i}">Name</label><input class="input" id="pn-${i}" data-k="name" value="${esc(p.name)}" autocomplete="name"></div>
-      <div class="field"><label for="pr-${i}">Registration / practising licence #</label><input class="input" id="pr-${i}" data-k="reg" value="${esc(p.reg)}"></div>
+      <div class="field"><label for="pr-${i}">General licence #</label><input class="input" id="pr-${i}" data-k="reg" value="${esc(p.reg)}"></div>
+      <div class="field"><label for="pv-${i}">Solar (PV) licence #</label><input class="input" id="pv-${i}" data-k="regPV" value="${esc(p.regPV)}" placeholder="Leave blank if the same"></div>
+      <div class="field"><label for="pi-${i}">Inspector licence #</label><input class="input" id="pi-${i}" data-k="regInsp" value="${esc(p.regInsp)}" placeholder="Leave blank if none"></div>
       <div class="field"><label for="pp-${i}">Phone</label><input class="input" id="pp-${i}" data-k="phone" value="${esc(p.phone)}" inputmode="tel" autocomplete="tel"></div>
       <div class="field"><label for="pe-${i}">Email</label><input class="input" id="pe-${i}" data-k="email" value="${esc(p.email)}" inputmode="email" autocomplete="email"></div>
     </div>
