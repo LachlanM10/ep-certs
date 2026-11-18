@@ -216,7 +216,7 @@ let S = store.get("ep.settings", null) || { people: [], meId: null, company: {},
   if (!S.records && CFG.records) S.records = CFG.records;
   for (const p of CFG.people || []) {
     let mine = S.people.find((x) => x.id === p.id);
-    if (!mine) { if ((S.removed || []).includes(p.id)) continue; mine = { id: p.id, sig: null }; S.people.push(mine); }
+    if (!mine) { mine = { id: p.id, sig: null }; S.people.push(mine); } // team in config.js always comes back
     for (const k of ["name", "reg", "regPV", "regInsp", "phone", "email"]) if (!mine[k] && p[k]) mine[k] = p[k];
   }
   // One-time setup link: ?fergus=<lookup url>&key=<access code>
@@ -794,7 +794,7 @@ function personEditor(p, i) {
     </div>
     <div class="field"><div class="lbl">Saved signature</div>
       <div class="sig${p.sig ? " has" : ""}" id="ps-${i}" style="height:130px"><canvas aria-label="Saved signature pad"></canvas><div class="ph">Optional. Sign once here to reuse with one tap.</div></div>
-      <div class="sig-tools"><button type="button" class="btn sm" data-psclear="${i}">Clear signature</button>${S.people.length > 1 ? `<button type="button" class="btn sm danger" data-premove="${i}">Remove ${esc(p.name || "person")}</button>` : ""}</div>
+      <div class="sig-tools"><button type="button" class="btn sm" data-psclear="${i}">Clear signature</button>${S.people.length > 1 && !(CFG.people || []).some((x) => x.id === p.id) ? `<button type="button" class="btn sm danger" data-premove="${i}">Remove ${esc(p.name || "person")}</button>` : ""}</div>
     </div>
   </div>`;
 }
